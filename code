@@ -1,0 +1,61 @@
+import numpy as np
+import pandas as pd
+# Reading ratings file
+ratings = pd.read_csv('C:\\Users\\NITHISH\\Desktop\\Nextus Cam\\rating.csv')
+movies =  pd.read_csv('C:\\Users\\NITHISH\\Desktop\\Nextus Cam\\movie.csv')
+tags=     pd.read_csv('C:\\Users\\NITHISH\\Desktop\\Nextus Cam\\tag.csv')
+
+#tags=tags.drop(['timestamp'],axis=1)
+tags.head()
+#ratings=ratings.drop(['timestamp'],axis=1)
+ratings.head()
+ratings_fil=ratings.groupby('userId').filter(lambda x: len(x)>=55)
+movie_filtered_ratings = ratings_fil.userId.unique().tolist()
+ratings_fil
+#movie_filtered_ratings
+
+mixed=pd.merge(movies,tags,on='movieId',how='left')
+mixed.fillna('',inplace=True)
+mixed=pd.DataFrame(mixed.groupby('movieId')['tag'].apply(lambda i: '%s'% ' '.join(i)))
+final=pd.merge(movies,mixed,on='movieId',how='left')
+#final.pop('genres')
+#final.head()
+
+ratings_fil.head()   
+
+colab_ds=pd.merge(movies.loc[:,'movieId'],ratings_fil.iloc[:1900000,:],on='movieId',how='right')
+colab_ds.head()
+
+ds=colab_ds.pivot(index='movieId',columns='userId',values='rating').fillna(0)
+
+from sklearn.decomposition import TruncatedSVD
+svd=TruncatedSVD(n_components=200)
+matrix=svd.fit_transform(ds)
+matrix_df=pd.DataFrame(matrix,index=final.title.tolist())
+
+movies.movieId.unique
+from sklearn.metrics.pairwise import cosine_similarity
+
+def recommendation_system(inp):
+    movie_name=movies.loc[inp-1,'title']
+    print()
+    print('Movie Name: ',movie_name)
+    print()
+    x=np.array(matrix_df.loc[movies.loc[int(inp)-1,'title']]).reshape(1,-1)
+    score=cosine_similarity(matrix_df,x).reshape(-1)
+    #score
+    dictdf={ 'collaborative Score': score}
+    #dictdf
+    recommended_movies=pd.DataFrame(dictdf,index=matrix_df.index)
+    dictdf={'Confidence': score}
+    recommended_movies=pd.DataFrame(dictdf,index=matrix_df.index)
+    recommended_movies.sort_values('Confidence',ascending=False,inplace=True)
+    recs=recommended_movies[1:].head(10)
+    print(recs)
+    
+#_________________________Excecution Part_________________________    
+inp=int(input('Enter MovieId '))
+try:
+    recommendation_system(inp)    
+except:
+    print('No such MovieId')
